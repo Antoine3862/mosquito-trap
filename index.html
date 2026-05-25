@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MosquitoTrap — Contrôle du piège</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e0a;
+    --surface: #111611;
+    --card: #161c16;
+    --border: #1e2a1e;
+    --green: #4ade80;
+    --green-dim: #22c55e44;
+    --green-glow: #4ade8033;
+    --red: #f87171;
+    --red-dim: #ef444433;
+    --amber: #fbbf24;
+    --amber-dim: #f59e0b33;
+    --text: #e8f5e9;
+    --text-muted: #6b8f6b;
+    --text-dim: #2d4a2d;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-head);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--text-dim) 1px, transparent 1px),
+      linear-gradient(90deg, var(--text-dim) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 430px;
+    margin: 0 auto;
+    padding: 0 0 100px;
+  }
+
+  /* Header */
+  header {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--green-dim);
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+
+  .logo-text span {
+    color: var(--green);
+  }
+
+  .connection-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    border: 1px solid;
+    transition: all 0.4s;
+    cursor: pointer;
+  }
+
+  .connection-badge.connected {
+    color: var(--green);
+    border-color: var(--green);
+    background: var(--green-dim);
+  }
+
+  .connection-badge.disconnected {
+    color: var(--red);
+    border-color: var(--red);
+    background: var(--red-dim);
+  }
+
+  .connection-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .connection-badge.connected .dot {
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Hero power section */
+  .power-section {
+    padding: 28px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .power-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    text-transform: uppercase;
+  }
+
+  .power-ring {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin-bottom: 24px;
+  }
+
+  .power-ring svg {
+    position: absolute;
+    inset: 0;
+    transform: rotate(-90deg);
+  }
+
+  .power-ring .track {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 3;
+  }
+
+  .power-ring .arc {
+    fill: none;
+    stroke: var(--green);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 502;
+    stroke-dashoffset: 502;
+    filter: drop-shadow(0 0 6px var(--green));
+    transition: stroke-dashoffset 1s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.4s;
+  }
+
+  .power-btn {
+    position: absolute;
+    inset: 16px;
+    border-radius: 50%;
+    background: var(--card);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.3s;
+    border: 2px solid var(--border);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .power-btn:active {
+    transform: scale(0.94);
+  }
+
+  .power-btn.on {
+    background: var(--green-glow);
+    border-color: var(--green);
+    box-shadow: 0 0 40px var(--green-glow), inset 0 0 20px var(--green-glow);
+  }
+
+  .power-btn .power-ico {
+    font-size: 36px;
+    line-height: 1;
+    transition: all 0.3s;
+  }
+
+  .power-btn.on .power-ico {
+    filter: drop-shadow(0 0 8px var(--green));
+  }
+
+  .power-btn .power-status {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    transition: color 0.3s;
+  }
+
+  .power-btn.on .power-status {
+    color: var(--green);
+  }
+
+  .power-info {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .power-info strong {
+    color: var(--text);
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 10px;
+    text-align: center;
+    transition: border-color 0.3s;
+  }
+
+  .stat-card:hover { border-color: var(--green); }
+
+  .stat-val {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-val.green { color: var(--green); }
+  .stat-val.amber { color: var(--amber); }
+
+  .stat-lbl {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  /* Section */
+  .section {
+    padding: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Alerts */
+  .alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .alert-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slide-in 0.4s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .alert-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+
+  .alert-item.danger::before { background: var(--red); }
+  .alert-item.warning::before { background: var(--amber); }
+  .alert-item.info::before { background: var(--green); }
+
+  .alert-ico { font-size: 18px; flex-shrink: 0; }
+
+  .alert-body { flex: 1; min-width: 0; }
+
+  .alert-msg {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .alert-time {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .alert-dismiss {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .alert-dismiss:active { background: var(--border); }
+
+  .no-alerts {
+    text-align: center;
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* Schedule */
+  .schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .schedule-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .schedule-item.active { border-color: var(--green); }
+
+  .schedule-time {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text);
+    min-width: 70px;
+  }
+
+  .schedule-info { flex: 1; }
+
+  .schedule-days {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .schedule-action {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .schedule-action.on { color: var(--green); }
+  .schedule-action.off { color: var(--red); }
+
+  .toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { display: none; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .toggle input:checked + .toggle-track { background: var(--green); }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  }
+
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+  /* Add schedule button */
+  .add-schedule-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .add-schedule-btn:active {
+    background: var(--card);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    width: 100%;
+    max-width: 430px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px 40px;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.34, 1.15, 0.64, 1);
+  }
+
+  .modal-overlay.open .modal {
+    transform: translateY(0);
+  }
+
+  .modal-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+
+  .modal-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 20px;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .form-input:focus { border-color: var(--green); }
+
+  .days-picker {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .day-btn {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-head);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .day-btn.active {
+    background: var(--green-dim);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .action-picker {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .action-btn {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text-muted);
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+
+  .action-btn.active-on {
+    background: var(--green-dim);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .action-btn.active-off {
+    background: var(--red-dim);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .modal-save-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--green);
+    border: none;
+    border-radius: 12px;
+    color: #0a0e0a;
+    font-family: var(--font-head);
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .modal-save-btn:active { opacity: 0.85; transform: scale(0.98); }
+
+  /* IP settings */
+  .settings-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .settings-ico { font-size: 20px; }
+
+  .settings-info { flex: 1; }
+
+  .settings-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .settings-sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .settings-edit-btn {
+    background: var(--border);
+    border: none;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .settings-edit-btn:active { background: var(--green); color: var(--bg); }
+
+  /* Bottom nav */
+  nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 430px;
+    margin: 0 auto;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    z-index: 50;
+  }
+
+  .nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    gap: 4px;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nav-ico { font-size: 22px; }
+
+  .nav-lbl {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+
+  .nav-btn.active .nav-lbl { color: var(--green); }
+  .nav-btn.active .nav-ico { filter: drop-shadow(0 0 4px var(--green)); }
+
+  /* Page system */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--card);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 200;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    box-shadow: 0 0 20px var(--green-glow);
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--red); color: var(--red); box-shadow: 0 0 20px var(--red-dim); }
+
+  /* Intensity slider */
+  .intensity-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .intensity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .intensity-title { font-size: 13px; font-weight: 700; }
+
+  .intensity-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--green);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--green);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--green-glow);
+  }
+
+  .sensor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .sensor-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .sensor-ico { font-size: 24px; margin-bottom: 8px; }
+
+  .sensor-val {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .sensor-lbl {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🦟</div>
+      <div class="logo-text">Mosquito<span>Trap</span></div>
+    </div>
+    <div class="connection-badge disconnected" id="connBadge" onclick="toggleConnect()">
+      <div class="dot"></div>
+      <span id="connText">Déconnecté</span>
+    </div>
+  </header>
+
+  <!-- PAGE : ACCUEIL -->
+  <div class="page active" id="page-home">
+
+    <div class="power-section">
+      <div class="power-label">Contrôle principal</div>
+      <div class="power-ring">
+        <svg viewBox="0 0 180 180">
+          <circle class="track" cx="90" cy="90" r="80"/>
+          <circle class="arc" id="powerArc" cx="90" cy="90" r="80"/>
+        </svg>
+        <button class="power-btn" id="powerBtn" onclick="togglePower()">
+          <span class="power-ico">⏻</span>
+          <span class="power-status" id="powerStatus">ÉTEINT</span>
+        </button>
+      </div>
+      <div class="power-info" id="powerInfo">Appuyez pour allumer le piège</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val green" id="statToday">0</div>
+        <div class="stat-lbl">Aujourd'hui</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statWeek">0</div>
+        <div class="stat-lbl">Cette sem.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val amber" id="statTemp">—</div>
+        <div class="stat-lbl">Temp °C</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Intensité UV</div>
+      <div class="intensity-card">
+        <div class="intensity-header">
+          <span class="intensity-title">Lampe UV</span>
+          <span class="intensity-val" id="intensityVal">70%</span>
+        </div>
+        <input type="range" min="0" max="100" value="70" id="intensitySlider"
+               oninput="updateIntensity(this.value)" onchange="sendIntensity(this.value)">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Capteurs</div>
+      <div class="sensor-grid">
+        <div class="sensor-card">
+          <div class="sensor-ico">🌡️</div>
+          <div class="sensor-val" id="sensorTemp">—</div>
+          <div class="sensor-lbl">Température</div>
+        </div>
+        <div class="sensor-card">
+          <div class="sensor-ico">💧</div>
+          <div class="sensor-val" id="sensorHum">—</div>
+          <div class="sensor-lbl">Humidité</div>
+        </div>
+        <div class="sensor-card">
+          <div class="sensor-ico">🔋</div>
+          <div class="sensor-val" id="sensorBat">—</div>
+          <div class="sensor-lbl">Batterie</div>
+        </div>
+        <div class="sensor-card">
+          <div class="sensor-ico">📡</div>
+          <div class="sensor-val" id="sensorWifi">—</div>
+          <div class="sensor-lbl">WiFi dBm</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PAGE : ALERTES -->
+  <div class="page" id="page-alerts">
+    <div style="padding: 24px 20px 16px;">
+      <div style="font-size: 22px; font-weight: 800; margin-bottom: 4px;">Alertes</div>
+      <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">Notifications du piège</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Récentes</div>
+      <div class="alerts-list" id="alertsList"></div>
+    </div>
+  </div>
+
+  <!-- PAGE : HORAIRES -->
+  <div class="page" id="page-schedule">
+    <div style="padding: 24px 20px 16px;">
+      <div style="font-size: 22px; font-weight: 800; margin-bottom: 4px;">Programmation</div>
+      <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">Horaires automatiques</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Horaires actifs</div>
+      <div class="schedule-list" id="scheduleList"></div>
+      <button class="add-schedule-btn" onclick="openModal()" style="margin-top: 10px;">
+        <span>＋</span> Ajouter un horaire
+      </button>
+    </div>
+
+    <div class="section" style="margin-top: 8px;">
+      <div class="section-title">Connexion Pico W</div>
+      <div class="settings-card">
+        <div class="settings-ico">📡</div>
+        <div class="settings-info">
+          <div class="settings-title">Adresse IP</div>
+          <div class="settings-sub" id="ipDisplay">192.168.1.50</div>
+        </div>
+        <button class="settings-edit-btn" onclick="editIP()">Modifier</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- NAV -->
+<nav>
+  <button class="nav-btn active" id="nav-home" onclick="showPage('home')">
+    <span class="nav-ico">🏠</span>
+    <span class="nav-lbl">Accueil</span>
+  </button>
+  <button class="nav-btn" id="nav-alerts" onclick="showPage('alerts')">
+    <span class="nav-ico">🔔</span>
+    <span class="nav-lbl">Alertes</span>
+  </button>
+  <button class="nav-btn" id="nav-schedule" onclick="showPage('schedule')">
+    <span class="nav-ico">🕐</span>
+    <span class="nav-lbl">Horaires</span>
+  </button>
+</nav>
+
+<!-- MODAL AJOUT HORAIRE -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalIfBg(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Nouvel horaire</div>
+
+    <div class="form-group">
+      <label class="form-label">Heure</label>
+      <input type="time" class="form-input" id="newTime" value="20:00">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Jours</label>
+      <div class="days-picker">
+        <button class="day-btn active" data-day="L">L</button>
+        <button class="day-btn active" data-day="M">M</button>
+        <button class="day-btn active" data-day="Me">Me</button>
+        <button class="day-btn active" data-day="J">J</button>
+        <button class="day-btn active" data-day="V">V</button>
+        <button class="day-btn" data-day="S">S</button>
+        <button class="day-btn" data-day="D">D</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Action</label>
+      <div class="action-picker">
+        <button class="action-btn active-on" id="actionOn" onclick="selectAction('on')">⚡ Allumer</button>
+        <button class="action-btn" id="actionOff" onclick="selectAction('off')">💤 Éteindre</button>
+      </div>
+    </div>
+
+    <button class="modal-save-btn" onclick="saveSchedule()">Enregistrer</button>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let picoIP = localStorage.getItem('picoIP') || '192.168.1.50';
+let trapOn = false;
+let connected = false;
+let intensity = 70;
+let selectedAction = 'on';
+
+let alerts = [
+  { type: 'warning', ico: '⚡', msg: 'Réseau WiFi instable', time: 'Il y a 5 min' },
+  { type: 'info', ico: '🦟', msg: '12 captures détectées cette nuit', time: 'Il y a 2h' },
+  { type: 'danger', ico: '🔋', msg: 'Batterie faible (15%)', time: 'Il y a 3h' },
+];
+
+let schedules = [
+  { time: '20:00', days: 'L·M·Me·J·V', action: 'on', enabled: true },
+  { time: '06:00', days: 'L·M·Me·J·V', action: 'off', enabled: true },
+  { time: '21:00', days: 'S·D', action: 'on', enabled: false },
+];
+
+// ─── Init ─────────────────────────────────────────────────
+document.getElementById('ipDisplay').textContent = picoIP;
+renderAlerts();
+renderSchedules();
+
+// Day picker
+document.querySelectorAll('.day-btn').forEach(btn => {
+  btn.addEventListener('click', () => btn.classList.toggle('active'));
+});
+
+// ─── Pages ───────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+}
+
+// ─── Connection ───────────────────────────────────────────
+function toggleConnect() {
+  if (connected) {
+    connected = false;
+    updateConnectionUI();
+    showToast('Déconnecté du piège', true);
+  } else {
+    showToast('Connexion en cours…');
+    setTimeout(() => {
+      connected = true;
+      updateConnectionUI();
+      fetchStatus();
+      showToast('Connecté ! 🦟');
+    }, 1200);
+  }
+}
+
+function updateConnectionUI() {
+  const badge = document.getElementById('connBadge');
+  const text = document.getElementById('connText');
+  badge.className = 'connection-badge ' + (connected ? 'connected' : 'disconnected');
+  text.textContent = connected ? picoIP : 'Déconnecté';
+}
+
+// ─── Power ────────────────────────────────────────────────
+function togglePower() {
+  if (!connected) { showToast('Connectez-vous d\'abord !', true); return; }
+  trapOn = !trapOn;
+  updatePowerUI();
+  apiCall(trapOn ? '/on' : '/off');
+}
+
+function updatePowerUI() {
+  const btn = document.getElementById('powerBtn');
+  const arc = document.getElementById('powerArc');
+  const info = document.getElementById('powerInfo');
+  const status = document.getElementById('powerStatus');
+
+  btn.className = 'power-btn' + (trapOn ? ' on' : '');
+  status.textContent = trapOn ? 'ACTIF' : 'ÉTEINT';
+  arc.style.strokeDashoffset = trapOn ? '0' : '502';
+  arc.style.stroke = trapOn ? 'var(--green)' : 'var(--border)';
+  info.innerHTML = trapOn
+    ? 'Piège <strong>actif</strong> — UV + ventilateur ON'
+    : 'Appuyez pour allumer le piège';
+
+  if (trapOn) {
+    // Simulate captures incrementing
+    simulateCaptures();
+  }
+}
+
+let captureInterval;
+let todayCount = 0;
+let weekCount = 0;
+
+function simulateCaptures() {
+  clearInterval(captureInterval);
+  captureInterval = setInterval(() => {
+    if (!trapOn) { clearInterval(captureInterval); return; }
+    if (Math.random() < 0.3) {
+      todayCount++;
+      weekCount++;
+      document.getElementById('statToday').textContent = todayCount;
+      document.getElementById('statWeek').textContent = weekCount;
+    }
+  }, 4000);
+}
+
+// ─── Intensity ────────────────────────────────────────────
+function updateIntensity(v) {
+  intensity = v;
+  document.getElementById('intensityVal').textContent = v + '%';
+}
+
+function sendIntensity(v) {
+  if (!connected) return;
+  apiCall('/intensity?v=' + v);
+}
+
+// ─── Fetch status from Pico ───────────────────────────────
+function fetchStatus() {
+  // In production: fetch(`http://${picoIP}/status`)
+  // Simulated response:
+  const fake = {
+    power: false,
+    temp: (22 + Math.random() * 5).toFixed(1),
+    hum: (60 + Math.random() * 20).toFixed(0),
+    battery: 78,
+    wifi: -62
+  };
+  document.getElementById('sensorTemp').textContent = fake.temp + '°';
+  document.getElementById('sensorHum').textContent = fake.hum + '%';
+  document.getElementById('sensorBat').textContent = fake.battery + '%';
+  document.getElementById('sensorWifi').textContent = fake.wifi;
+  document.getElementById('statTemp').textContent = parseFloat(fake.temp).toFixed(0);
+}
+
+// ─── API call ─────────────────────────────────────────────
+async function apiCall(path) {
+  try {
+    // In production: await fetch(`http://${picoIP}${path}`)
+    console.log('[Pico API]', `http://${picoIP}${path}`);
+  } catch(e) {
+    showToast('Erreur réseau', true);
+  }
+}
+
+// ─── Alerts ───────────────────────────────────────────────
+function renderAlerts() {
+  const list = document.getElementById('alertsList');
+  if (!alerts.length) {
+    list.innerHTML = '<div class="no-alerts">🌿 Aucune alerte</div>';
+    return;
+  }
+  list.innerHTML = alerts.map((a, i) => `
+    <div class="alert-item ${a.type}" id="alert-${i}">
+      <span class="alert-ico">${a.ico}</span>
+      <div class="alert-body">
+        <div class="alert-msg">${a.msg}</div>
+        <div class="alert-time">${a.time}</div>
+      </div>
+      <button class="alert-dismiss" onclick="dismissAlert(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function dismissAlert(i) {
+  alerts.splice(i, 1);
+  renderAlerts();
+}
+
+// ─── Schedules ────────────────────────────────────────────
+function renderSchedules() {
+  const list = document.getElementById('scheduleList');
+  list.innerHTML = schedules.map((s, i) => `
+    <div class="schedule-item ${s.enabled ? 'active' : ''}">
+      <div class="schedule-time">${s.time}</div>
+      <div class="schedule-info">
+        <div class="schedule-days">${s.days}</div>
+        <div class="schedule-action ${s.action}">${s.action === 'on' ? '⚡ Allumer' : '💤 Éteindre'}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSchedule(${i}, this.checked)">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+  `).join('');
+}
+
+function toggleSchedule(i, val) {
+  schedules[i].enabled = val;
+  renderSchedules();
+  apiCall('/schedules');
+}
+
+// ─── Modal ────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function closeModalIfBg(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+function selectAction(a) {
+  selectedAction = a;
+  document.getElementById('actionOn').className = 'action-btn' + (a === 'on' ? ' active-on' : '');
+  document.getElementById('actionOff').className = 'action-btn' + (a === 'off' ? ' active-off' : '');
+}
+
+function saveSchedule() {
+  const time = document.getElementById('newTime').value;
+  const activeDays = [...document.querySelectorAll('.day-btn.active')].map(b => b.dataset.day);
+  if (!activeDays.length) { showToast('Choisissez au moins un jour', true); return; }
+  schedules.push({
+    time,
+    days: activeDays.join('·'),
+    action: selectedAction,
+    enabled: true
+  });
+  renderSchedules();
+  closeModal();
+  apiCall('/schedules');
+  showToast('Horaire enregistré ✓');
+}
+
+// ─── IP edit ──────────────────────────────────────────────
+function editIP() {
+  const ip = prompt('Adresse IP du Pico W :', picoIP);
+  if (ip) {
+    picoIP = ip.trim();
+    localStorage.setItem('picoIP', picoIP);
+    document.getElementById('ipDisplay').textContent = picoIP;
+    showToast('IP mise à jour');
+  }
+}
+
+// ─── Toast ────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isErr ? ' error' : '') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast' + (isErr ? ' error' : ''), 2500);
+}
+
+// ─── Auto-refresh ─────────────────────────────────────────
+setInterval(() => {
+  if (connected) fetchStatus();
+}, 10000);
+</script>
+</body>
+</html>
